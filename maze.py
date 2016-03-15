@@ -18,22 +18,13 @@ def ReadMaze(file):
   Args:
       file: str, A file name with a maze.
   Returns:
-    2-D array with maze, (x, y) maze start, (x, y) maze exit
+    2-D array with maze
   """
   with open(file) as d:
     lines = [line.strip() for line in d.readlines()]
   maze = [[lines[y][x] for y in range(len(lines))]
           for x in range(len(lines[0]))]
-  start = None
-  end = None
-  for x in range(len(maze)):
-    for y in range(len(maze[0])):
-      c = maze[x][y]
-      if c == 'X':
-        start = (x, y)
-      if c == 'O':
-        end = (x, y)
-  return maze, start, end
+  return maze
 
 
 def FindAdjs(maze, psrc):
@@ -79,16 +70,37 @@ def CollectPath(p, visited):
   return path
 
 
-def FindPath(maze, start, end):
+def FindStartEnd(maze):
+  """FInds a starting and ending positions.
+  Args:
+    maze: 2-D maze array,
+  Returns:
+    start, end: (x, y) points
+  """
+  start = None
+  end = None
+  for x in range(len(maze)):
+    for y in range(len(maze[0])):
+      c = maze[x][y]
+      if c == 'X':
+        start = (x, y)
+      if c == 'O':
+        end = (x, y)
+    if start is not None and end is not None:
+      break
+  return start, end
+
+
+def FindPath(maze):
   """Finds a shortest path in a maze from a starting point to the end point.
 
   Args:
     maze: 2-D maze array,
-    start: (x, y), A starting point.
-    end: (x, y), An exit point.
   Returns:
     A list of (x, y) points, A shortest path from start to end.
   """
+  start, end = FindStartEnd(maze)
+
   visited = {start: None}
   lastVisited = visited.copy()
 
@@ -111,6 +123,7 @@ def PrintMaze(maze, path):
     maze: 2-D maze array,
     path: A list of (x, y) points.
   """
+  maze = [xline[:] for xline in maze]
   for (x, y) in path:
     if maze[x][y] == ' ':
       maze[x][y] = '+'
@@ -127,8 +140,8 @@ def Run(file):
   Args:
     file: str, A file name with a maze.
   """
-  maze, start, end = ReadMaze(file)
-  path = FindPath(maze, start, end)
+  maze = ReadMaze(file)
+  path = FindPath(maze)
   PrintMaze(maze, path)
 
 
