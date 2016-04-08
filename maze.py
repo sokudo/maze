@@ -9,141 +9,120 @@
 #   #     #  O    # ++++# +O
 #   ##########    ##########
 
+import collections
 import sys
 
 
-def ReadMaze(file):
-  """Reads a maze from a file.
+class Maze(object):
 
-  Args:
-      file: str, A file name with a maze.
-  Returns:
-    2-D array with maze
-  """
-  with open(file) as d:
-    lines = [line.strip() for line in d.readlines()]
-  maze = [[lines[y][x] for y in range(len(lines))]
-          for x in range(len(lines[0]))]
-  return maze
+  def __init__(self, file):
+    """Reads a maze from a file.
 
+    Args:
+        file: str, A file name with a maze.
 
-def FindAdjs(maze, psrc):
-  """Finds all adjacent points.
+    """
+    self.maze = [line.strip() for line in open(file).readlines()]
+    self.ylim = len(self.maze)
+    self.xlim = len(self.maze[0])
+    self.start = self.Find('X')
+    self.end = self.Find('O')
 
-  Args:
-    maze: 2-D array with maze.
-    psrc: (x, y), A point in maze.
-  Returns:
-    list of adjacent points.
-  """
-  def check(p):
-      x, y = p
-      if x < 0 or y < 0 or y >= len(maze[0]) or x >= len(maze):
-        return False
-      if maze[x][y] in (' ', 'X', 'O'):
-        return True
+  def Find(self, c):
+    """Look up a starting and ending positions.
+    Args:
+      maze: 2-D maze array,
+    Returns:
+      (x, y) point
+    Raise:
+      LookupError
+    """
+    for y in range(self.ylim):
+      for x in range(self.xlim):
+        if c == self.maze[y][x]:
+          return (y, x)
+    raise LookupError("'%s' not found in maze" % c)
 
-      if maze[x][y] == '#':
-        return False
+  def FindAdjs(self, psrc):
+    """Finds all adjacent points.
 
-      raise Exception('Bad cell')
+    Args:
+      psrc: (x, y), A point in maze.
+    Returns:
+      list of adjacent points.
+    """
+    def check(p):
+        y, x = p
+        if x < 0 or y < 0 or y >= self.ylim or x >= self.xlim:
+          return False
+        if self.maze[y][x] in (' ', 'X', 'O'):
+          return True
 
-  x, y = psrc
-  return  [p for p in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1))
-             if check(p)]
+        if self.maze[y][x] == '#':
+          return False
 
+        raise ValueError('Bad cell')
 
-def CollectPath(p, visited):
-  """Collects a path from a point p to a starting point.
-
-  Args:
-    p: (x, y), A point.
-    visited: {(x, y): (prevx, prevy)}, A dict of point to point links.
-  Returns:
-     A list of (x, y) points.
-  """
-  path = []
-  while p != None:
-    path.append(p)
-    p = visited[p]
-  path.reverse()
-  return path
+    y, x = psrc
+    return  [p for p in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1))
+               if check(p)]
 
 
-def FindStartEnd(maze):
-  """FInds a starting and ending positions.
-  Args:
-    maze: 2-D maze array,
-  Returns:
-    start, end: (x, y) points
-  """
-  start = None
-  end = None
-  for x in range(len(maze)):
-    for y in range(len(maze[0])):
-      c = maze[x][y]
-      if c == 'X':
-        start = (x, y)
-      if c == 'O':
-        end = (x, y)
-    if start is not None and end is not None:
-      break
-  return start, end
+  def CollectPath(self, p, visited):
+    """Collects a path from a point p to a starting point.
+
+    Args:
+      p: (y, x), A point.
+      visited: {(y, x): (prevx, prevy)}, A dict of point to point links.
+    Returns:
+       A list of (y, x) points.
+    """
+    path = []
+    while p != None:
+      path.append(p)
+      p = visited[p]
+    path.reverse()
+    return path
 
 
-def FindPath(maze):
-  """Finds a shortest path in a maze from a starting point to the end point.
+  def Solve(self):
+    """Finds a shortest path in a maze from a starting point to the end point.
 
-  Args:
-    maze: 2-D maze array,
-  Returns:
-    A list of (x, y) points, A shortest path from start to end.
-  """
-  start, end = FindStartEnd(maze)
+    Args:
+      maze: 2-D maze array,
+    Returns:
+      A list of (y, x) points, A shortest path from start to end.
+    """
 
-  visited = {start: None}
-  lastVisited = visited.copy()
+    visited = {self.start: None}
+    q = collections.deque([self.start])
+    while q:
+      p = q.popleft()
+      for ap in self.FindAdjs(p):
+        if ap not in visited:
+          visited[ap] = p
+          q.append(ap)
+        if ap == self.end:
+          return self.CollectPath(ap, visited)
 
-  while lastVisited:
-    moreVisited = {}
-    for p in lastVisited:
-      for adjp in FindAdjs(maze, p):
-        if adjp == end:
-          return CollectPath(p, visited) + [end]
-        if adjp not in visited:
-          moreVisited[adjp] = p
-    visited.update(moreVisited)
-    lastVisited = moreVisited
+  def Print(self, path):
+    """Prints a maze with a path marked with +.
 
-
-def PrintMaze(maze, path):
-  """Prints a solved maze with a path marked with +.
-
-  Args:
-    maze: 2-D maze array,
-    path: A list of (x, y) points.
-  """
-  maze = [xline[:] for xline in maze]
-  for (x, y) in path:
-    if maze[x][y] == ' ':
-      maze[x][y] = '+'
-  lines = '\n'.join([
-      ''.join([
-          maze[x][y] for x in range(len(maze))])
-      for y in range(len(maze[0]))])
-  print lines
-
-
-def Run(file):
-  """Runs a maze solver for a maze in a file.
-
-  Args:
-    file: str, A file name with a maze.
-  """
-  maze = ReadMaze(file)
-  path = FindPath(maze)
-  PrintMaze(maze, path)
+    Args:
+      path: A list of (y, x) points.
+    """
+    maze = [[self.maze[y][x] for x in range(self.xlim)]
+            for y in range(self.ylim)]
+    for (y, x) in path:
+      if maze[y][x] == ' ':
+        maze[y][x] = '+'
+    lines = '\n'.join([
+        ''.join([
+            maze[y][x] for x in range(self.xlim)])
+        for y in range(self.ylim)])
+    print lines
 
 
 if len(sys.argv) == 2:
-  Run(sys.argv[1])
+  maze = Maze(sys.argv[1])
+  maze.Print(maze.Solve())
